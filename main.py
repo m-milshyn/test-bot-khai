@@ -10,11 +10,25 @@ sheetDekanat = sh.worksheet("DekanatContact")
 sheetDepart = sh.worksheet("Profcom faculty&department")
 sheetSocial = sh.worksheet("Social")
 sheetContest = sh.worksheet("Contest")
+sheetDoc = sh.worksheet("Regulatory documents")
+sheetRequisites = sh.worksheet("Requisites")
 token = '5779680701:AAG-9j4Yq5X2vTPY087O05rOlUcOc6_zl68'
 bot = telebot.TeleBot(token)
 TO_CHAT_ID = -1001848377879
 dev_chat_id = 338497309
 check_num = False
+contests = []
+chosen_contest = " "
+found_contest = None
+localsheets = None
+
+class Contest:
+    def __init__(self, name, start_date, end_date, description):
+        self.name = name
+        self.hashtag = "#" + name
+        self.start_date = start_date
+        self.end_date = end_date
+        self.description = description
 
 
 def telegram_bot():
@@ -76,12 +90,11 @@ def telegram_bot():
     def check(message):
         if ((message.text != "Конкурси")
                 and (message.text != "Головне меню")
+                and (message.text != "Відправити")
                 and (message.text != "Запитай Профком студентів ХАІ")
-                and (message.text != "Міс ХАІ: етап факультет")
                 and (message.text != "Повідомити про технічну помилку")
                 and (message.text != "Зв’язок та соціальні мережі")
                 and (message.text != "Пропозиції Та Скарги")
-                and (message.text != "Моменти з ХАІ")
                 and (message.text != "Профбюро студентів та департаменти ППОС НАУ \"ХАІ\"")
                 and (message.text != "СТОП")):
             return True
@@ -89,27 +102,12 @@ def telegram_bot():
             return False
 
     def req_(message):
-        if message.text == "Реквізити для сплати навчання":
-            rec_message = "Банківські реквізити для оплати за навчання\n" \
-                          "IBAN-рахунок:\n" \
-                          "UA878201720313271005201004199\n" \
-                          "Призначення платежу:\n" \
-                          "сплата за навчання ПІБ студента без скорочень , № договору\n\n" \
-                          "Відділ контрактів НАУ «ХАІ»:\n" \
-                          "тел.: +38 (057) 788-48-86\n" \
-                          "ауд. 117 головного корпусу"
-            bot.send_message(message.chat.id, rec_message)
-            bot.register_next_step_handler(message, req_)
-        elif message.text == "Реквізити для сплати проживання":
-            rec_message = "Банківські реквізити для оплати за проживання\n" \
-                          "IBAN-рахунок:\n" \
-                          "UA828201720313251001202017426\n" \
-                          "Призначення платежу:\n" \
-                          "за проживання у гуртожитку «ХАІ» № номер гуртожитку , ПІБ студента без скорочень"
-            bot.send_message(message.chat.id, rec_message)
-            bot.register_next_step_handler(message, req_)
-        else:
-            func(message)
+        for localsheet in localsheets:
+            if message.text == localsheet.get("Назва"):
+                rec_message = localsheet.get("Опис")
+                bot.send_message(message.chat.id, rec_message)
+                bot.register_next_step_handler(message, req_)
+        func(message)
 
     def question(message):
         global check_num
@@ -143,18 +141,6 @@ def telegram_bot():
                 check_num = True
             bot.forward_message(TO_CHAT_ID, message.chat.id, message.message_id)
             bot.register_next_step_handler(message, suggestions)
-        elif message.text == "СТОП":
-            message.text = "Головне меню"
-            func(message)
-
-    def contest_moment(message):
-        global check_num
-        if check(message):
-            if not check_num:
-                bot.send_message(TO_CHAT_ID, "#Моменти_з_ХАІ")
-                check_num = True
-            bot.forward_message(TO_CHAT_ID, message.chat.id, message.message_id)
-            bot.register_next_step_handler(message, contest_moment)
         elif message.text == "СТОП":
             message.text = "Головне меню"
             func(message)
@@ -198,7 +184,53 @@ def telegram_bot():
         else:
             func(message)
 
-    def contest(message, localsheets):
+    def contest_send(message):
+        global check_num
+        if check(message):
+            if not check_num:
+                bot.send_message(TO_CHAT_ID, found_contest.hashtag)
+                check_num = True
+            bot.forward_message(TO_CHAT_ID, message.chat.id, message.message_id)
+            bot.register_next_step_handler(message, contest_send)
+        elif message.text == "СТОП":
+            message.text = "Головне меню"
+            func(message)
+
+    def check_contest():
+        global found_contest
+        for contest in contests:
+            if contest.name == chosen_contest:
+                found_contest = contest
+                return True
+        return False
+
+    def contest_func(message):
+        global chosen_contest
+        global found_contest
+        global check_num
+        check_num = False
+        chosen_contest = message.text
+        current_datetime = datetime.now()
+        if check_contest():
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+            markup.add(types.KeyboardButton("Відправити"),
+                       types.KeyboardButton("Головне меню"))
+            bot.send_message(message.chat.id, found_contest.description, parse_mode="Markdown", reply_markup=markup)
+            bot.register_next_step_handler(message, contest_func)
+        if message.text == "Відправити":
+            if found_contest.start_date <= current_datetime <= found_contest.end_date:
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+                btn = types.KeyboardButton("СТОП")
+                markup.add(btn)
+                bot.send_message(message.chat.id, "Щоб завершити подачу заявки натисніть на кнопку \"СТОП\"",
+                                 reply_markup=markup)
+                bot.register_next_step_handler(message, contest_send)
+            else:
+                bot.send_message(message.chat.id, f"‼️Подачу заявок припинено‼️\n "
+                                                  f"Конкурс проводився з {found_contest.start_date} до {found_contest.end_date} включно")
+                bot.register_next_step_handler(message, contest_func)
+        elif message.text == "Головне меню":
+            func(message)
         
 
     @bot.message_handler(
@@ -209,16 +241,24 @@ def telegram_bot():
                        "migrate_from_chat_id", "pinned_message"])
     def func(message):
         global check_num
+        global localsheets
         if message.text == "Конкурси":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             localsheets = sheetContest.get_all_records()
             for localsheet in localsheets:
                 markup.add(types.KeyboardButton(localsheet.get("Назва конкурсу")))
+                contest = Contest(
+                    localsheet["Назва конкурсу"],
+                    datetime.strptime(localsheet["Дата проведення початку"], "%Y-%m-%d"),
+                    datetime.strptime(localsheet["Дата кінець"], "%Y-%m-%d"),
+                    localsheet["Супровід текст"])
+                contests.append(contest)
+
             markup.add(types.KeyboardButton("Головне меню"))
             bot.send_message(message.chat.id,
                              "Конкурси, що тривають, або будуть проходити незабаром:",
                              reply_markup=markup)
-            bot.register_next_step_handler(message, contest)
+            bot.register_next_step_handler(message, contest_func)
         elif message.text == "Головне меню":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             markup.add(types.KeyboardButton("Конкурси"),
@@ -317,20 +357,20 @@ def telegram_bot():
                              reply_markup=markup)
             bot.register_next_step_handler(message, problem_report)
         elif message.text == "Положення":
-            chat_message = "Положення:\n\n" \
-                           "1. [Правила призначення і виплати стипендій здобувачам вищої освіти](https://khai.edu/assets/files/polozhennya/polozhennya-pro-stipendii.pdf)\n" \
-                           "2. [Положення про академічну доброчесність](https://khai.edu/assets/files/polozhennya/polozhennya-pro-akademichnu-dobrochesnist.pdf)\n" \
-                           "3. [Положення про рейтингове оцінювання досянень студентів](https://khai.edu/assets/files/polozhennya/polozhennya-pro-rejtingove-ocinyuvannya-dosyagnen-studentiv.pdf)\n" \
-                           "4. [Про надання державної цільової підтримки деяким категоріям студентів, пов’язаної з проживанням у гутрожитках](https://khai.edu/assets/files/polozhennya/polozhennya-pro-nadannya-derzhavnoi-cilovoi-pidtrimki-studentiv-pov%E2%80%99yazanoi-z-prozhivannyam-u-gurtozhitkah.pdf)\n" \
-                           "5. [Положення про навчання здобувачів вищої освіти за індивідуальним графіком](https://khai.edu/assets/files/polozhennya/polozhennya-pro-navchannya-zdobuvachiv-vishhoi-osviti-za-individualnim-grafikom.pdf)\n" \
-                           "6. [Графік освітнього процесу ](https://khai.edu/ua/education/grafik-osvitnogo-procesu-2020/2021/denna-forma-navchannya6/)\n" \
-                           "7. [Положення про студентський гуртожиток](https://khai.edu/assets/files/polozhennya/polozhennya_gurtozhitki_hai_2015.PDF)\n"
-            bot.send_message(message.chat.id, chat_message, parse_mode="Markdown")
+            localsheets = sheetDoc.get_all_records()
+            bot.send_message(message.chat.id, "Почекайте, оновлюємо інформацію")
+            counter = 1
+            textMessage = ""
+            for localsheet in localsheets:
+                textMessage += f'{counter}. [{localsheet["Назва положення"]}]({localsheet["Посилання"]})\n'
+                counter += 1
+            bot.send_message(message.chat.id, textMessage, parse_mode="Markdown")
         elif message.text == "Реквізити":
+            localsheets = sheetRequisites.get_all_records()
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-            markup.add(types.KeyboardButton("Реквізити для сплати навчання"),
-                       types.KeyboardButton("Реквізити для сплати проживання"),
-                       types.KeyboardButton("Головне меню"))
+            for localsheet in localsheets:
+                markup.add(types.KeyboardButton(localsheet.get("Назва")))
+            markup.add(types.KeyboardButton("Головне меню"))
             bot.send_message(message.chat.id, "Оберіть які саме реквізити Вам потрібні:", reply_markup=markup)
             bot.register_next_step_handler(message, req_)
         elif message.text == "Запитай Профком студентів ХАІ":
