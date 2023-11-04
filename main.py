@@ -24,6 +24,17 @@ message_appeals = ""
 chosen_contest = " "
 found_contest = None
 localsheets = None
+allowed_values = [
+    "Конкурси",
+    "Головне меню",
+    "Відправити",
+    "Запитай Профком студентів ХАІ",
+    "Повідомити про технічну помилку",
+    "Зв’язок та соціальні мережі",
+    "Пропозиції Та Скарги",
+    "Профбюро студентів та департаменти ППОС НАУ \"ХАІ\"",
+    "СТОП"
+]
 
 
 class Contest:
@@ -89,8 +100,9 @@ def telegram_bot():
             func(message)
 
     def social_and_dekanat(message):
-        localsheets = sheetSocial.get_all_records()
+        global localsheets
         if message.text == "Соціальні мережі ППОС НАУ \"ХАІ\"":
+            localsheets = sheetSocial.get_all_records()
             bot.send_message(message.chat.id, "Почекайте, оновлюємо інформацію")
             for localsheet in localsheets:
                 textMessage = localsheet["Факультет"] + ":\n"
@@ -116,18 +128,7 @@ def telegram_bot():
             func(message)
 
     def check(message):
-        if ((message.text != "Конкурси")
-                and (message.text != "Головне меню")
-                and (message.text != "Відправити")
-                and (message.text != "Запитай Профком студентів ХАІ")
-                and (message.text != "Повідомити про технічну помилку")
-                and (message.text != "Зв’язок та соціальні мережі")
-                and (message.text != "Пропозиції Та Скарги")
-                and (message.text != "Профбюро студентів та департаменти ППОС НАУ \"ХАІ\"")
-                and (message.text != "СТОП")):
-            return True
-        else:
-            return False
+        return message.text not in allowed_values
 
     def req_(message):
         for localsheet in localsheets:
@@ -138,8 +139,6 @@ def telegram_bot():
         func(message)
 
     def question(message):
-        appeals_data
-        message_appeals
         global check_num
         if check(message):
             for data in appeals_data:
@@ -206,6 +205,10 @@ def telegram_bot():
                 bot.send_message(message.chat.id, "Щоб завершити подачу заявки натисніть на кнопку \"СТОП\"",
                                  reply_markup=markup)
                 bot.register_next_step_handler(message, contest_send)
+            elif found_contest.start_date > current_datetime:
+                bot.send_message(message.chat.id, f"‼️Подачу заявок ще не розпочато‼️\n "
+                                                  f"Конкурс буде проводитися з {found_contest.start_date} до {found_contest.end_date} включно")
+                bot.register_next_step_handler(message, contest_func)
             else:
                 bot.send_message(message.chat.id, f"‼️Подачу заявок припинено‼️\n "
                                                   f"Конкурс проводився з {found_contest.start_date} до {found_contest.end_date} включно")
@@ -249,6 +252,9 @@ def telegram_bot():
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             localsheets = sheetContest.get_all_records()
             buttons_group = []
+            current_datetime = datetime.now()
+            message_text = f"Конкурси, що тривають, або будуть проходити незабаром:\n\n"
+            i = 1
             for localsheet in localsheets:
                 contest = Contest(
                     localsheet["Назва конкурсу"],
@@ -257,6 +263,14 @@ def telegram_bot():
                     localsheet["Супровід текст"])
                 contests.append(contest)
                 button = types.KeyboardButton(localsheet.get("Назва конкурсу"))
+                message_text += f'{i}. {localsheet.get("Назва конкурсу")} - '
+                if contest.start_date > current_datetime:
+                    message_text += f'ще не розпочався\n'
+                elif contest.start_date <= current_datetime <= contest.end_date:
+                    message_text += f'триває\n'
+                else:
+                    message_text += f'завершився\n'
+                i += 1
                 buttons_group.append(button)
                 if len(buttons_group) == 2:
                     markup.add(*buttons_group)
@@ -267,7 +281,7 @@ def telegram_bot():
 
             markup.add(types.KeyboardButton("Головне меню"), row_width=2)
             bot.send_message(message.chat.id,
-                             "Конкурси, що тривають, або будуть проходити незабаром:",
+                             message_text,
                              reply_markup=markup)
             bot.register_next_step_handler(message, contest_func)
         elif message.text == "Профбюро студентів та департаменти ППОС НАУ \"ХАІ\"":
