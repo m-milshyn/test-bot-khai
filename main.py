@@ -12,15 +12,19 @@ sheetSocial = sh.worksheet("Social")
 sheetContest = sh.worksheet("Contest")
 sheetDoc = sh.worksheet("Regulatory documents")
 sheetRequisites = sh.worksheet("Requisites")
+sheetFAQ = sh.worksheet("FAQ")
 token = '5779680701:AAG-9j4Yq5X2vTPY087O05rOlUcOc6_zl68'
 bot = telebot.TeleBot(token)
 TO_CHAT_ID = -1001848377879
 dev_chat_id = 338497309
 check_num = False
 contests = []
+FAQs = []
+message_appeals = ""
 chosen_contest = " "
 found_contest = None
 localsheets = None
+
 
 class Contest:
     def __init__(self, name, start_date, end_date, description):
@@ -29,6 +33,30 @@ class Contest:
         self.start_date = start_date
         self.end_date = end_date
         self.description = description
+
+
+class FAQ_data:
+    def __init__(self, number, question, answer, link):
+        self.number = number
+        self.question = question
+        self.answer = answer
+        if link:
+            self.link = link
+        else:
+            self.link = None
+
+
+class Appeals:
+    def __init__(self, name, hashtag, chat_id):
+        self.name = name
+        self.hashtag = hashtag
+        self.chat_id = chat_id
+
+
+appeals_data = [
+    Appeals("Запитай Профком студентів ХАІ", "#ПитанняПрофкому", TO_CHAT_ID),
+    Appeals("Пропозиції та скарги", "#ПропозиціїТаСкарги", TO_CHAT_ID),
+    Appeals("Повідомити про технічну помилку", "#ПовідомитиПроПомилку", dev_chat_id)]
 
 
 def telegram_bot():
@@ -51,7 +79,6 @@ def telegram_bot():
 
     def faculty_profcom(message):
         if sheetDepart.find(message.text):
-            localsheets = sheetDepart.get_all_records()
             for localsheet in localsheets:
                 if localsheet["Назва підрозділу"] == message.text:
                     textMessage = f'{localsheet["Назва підрозділу"]}\n\n{localsheet["Основний текст про підрозділ"]}\n\n{localsheet["Контакти та ПІБ"]}'
@@ -110,79 +137,32 @@ def telegram_bot():
         func(message)
 
     def question(message):
+        appeals_data
+        message_appeals
         global check_num
         if check(message):
-            if not check_num:
-                bot.send_message(TO_CHAT_ID, "#ПитанняПрофкому")
-                check_num = True
-            bot.forward_message(TO_CHAT_ID, message.chat.id, message.message_id)
-            bot.register_next_step_handler(message, question)
-        elif message.text == "СТОП":
-            message.text = "Головне меню"
-            func(message)
-
-    def problem_report(message):
-        global check_num
-        if check(message):
-            if not check_num:
-                bot.send_message(dev_chat_id, "#ПовідомитиПроПомилку")
-                check_num = True
-            bot.forward_message(dev_chat_id, message.chat.id, message.message_id)
-            bot.register_next_step_handler(message, problem_report)
-        elif message.text == "СТОП":
-            message.text = "Головне меню"
-            func(message)
-
-    def suggestions(message):
-        global check_num
-        if check(message):
-            if not check_num:
-                bot.send_message(TO_CHAT_ID, "#ПропозиціїТаСкарги")
-                check_num = True
-            bot.forward_message(TO_CHAT_ID, message.chat.id, message.message_id)
-            bot.register_next_step_handler(message, suggestions)
+            for data in appeals_data:
+                if data.name == message_appeals:
+                    if not check_num:
+                        bot.send_message(data.chat_id, data.hashtag)
+                        check_num = True
+                    bot.forward_message(data.chat_id, message.chat.id, message.message_id)
+                    bot.register_next_step_handler(message, question)
         elif message.text == "СТОП":
             message.text = "Головне меню"
             func(message)
 
     def FAQ(message):
-        if message.text == "1":
-            bot.send_message(message.chat.id,
-                             "Ви маєте змогу написати заяву та подати пакет документів на оформлення соціальної стипендії у будь-який момент. "
-                             "Соціальна стипендія буде нараховуватись з моменту написання заяви")
-            bot.register_next_step_handler(message, FAQ)
-        if message.text == "2":
-            bot.send_message(message.chat.id,
-                             "[Приклади шаблонів заяв та документів Ви можете знайти на нашому сайті в розділі “Корисні ресурси”](https://education.khai.edu/union/studresources)",
-                             parse_mode="Markdown")
-            bot.register_next_step_handler(message, FAQ)
-        if message.text == "3":
-            bot.send_message(message.chat.id,
-                             "На жаль, студенти мають змогу отримувати тільки одну стипендію. Або академічну, або соціальну. "
-                             "Рекомендуємо Вам оформлювати соціальну стипендію тільки тоді, коли Ви дізнаєтесь "
-                             "кінцевий рейтинг на отримання академічної стипендії")
-            bot.register_next_step_handler(message, FAQ)
-        if message.text == "4":
-            bot.send_message(message.chat.id,
-                             "Соціальну стипендію необхідно оформлювати раз в семестр. "
-                             "Наприклад, якщо 1 семестр курсу закінчився, то в 2 семестрі "
-                             "Вам необхідно ще раз писати заяву та подати пакет документів "
-                             "на оформлення соціальної стипендії")
-            bot.register_next_step_handler(message, FAQ)
-        if message.text == "5":
-            bot.send_message(message.chat.id,
-                             "Соціальні стипендії - це виплата, яку отримують студенти, які мають право на пільги.\n\n"
-                             "[Перелік пільгових категорій, які мають право на оформлення соціальної стипендії](https://drive.google.com/file/d/1NJ3IWLqGvoyiw2LfYo21SpIam-d93j5n/view?usp=share_link)\n\n"
-                             "Якщо Ви навчаєтесь на бюджеті, маєте підтверджувальні документи вашого статусу,  "
-                             "не маєте академічних заборгованостей - то Ви маєте можливість подати до деканату "
-                             "необхідний пакет документів на призначення соціальної стипендії!\n\n"
-                             "Приклади заяв на соціальні стипендії та перелік всіх необхідних документів можна знайти  "
-                             "у [Додатку Б  \"Положення про рейтингове оцінювання\"](https://khai.edu/assets/files/polozhennya/polozhennya-pro-stipendii.pdf).\n\n"
-                             "❗️Не стосується здобувачів освіти, які отримують академічну стипендію❗️",
-                             parse_mode="Markdown")
-            bot.register_next_step_handler(message, FAQ)
-        else:
+        if message.text == "Головне меню":
             func(message)
+        answer_text = f""
+        for data in FAQs:
+            if str(data.number) == message.text:
+                answer_text += f"{data.answer}"
+                if data.link is not None:
+                    answer_text += f'\n\n{data.link}'
+                bot.send_message(message.chat.id, answer_text)
+                bot.register_next_step_handler(message, FAQ)
 
     def contest_send(message):
         global check_num
@@ -231,7 +211,6 @@ def telegram_bot():
                 bot.register_next_step_handler(message, contest_func)
         elif message.text == "Головне меню":
             func(message)
-        
 
     @bot.message_handler(
         content_types=['text', "audio", "document", "photo", "sticker", "video", "video_note", "voice", "location",
@@ -242,24 +221,8 @@ def telegram_bot():
     def func(message):
         global check_num
         global localsheets
-        if message.text == "Конкурси":
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-            localsheets = sheetContest.get_all_records()
-            for localsheet in localsheets:
-                markup.add(types.KeyboardButton(localsheet.get("Назва конкурсу")))
-                contest = Contest(
-                    localsheet["Назва конкурсу"],
-                    datetime.strptime(localsheet["Дата проведення початку"], "%Y-%m-%d"),
-                    datetime.strptime(localsheet["Дата кінець"], "%Y-%m-%d"),
-                    localsheet["Супровід текст"])
-                contests.append(contest)
-
-            markup.add(types.KeyboardButton("Головне меню"))
-            bot.send_message(message.chat.id,
-                             "Конкурси, що тривають, або будуть проходити незабаром:",
-                             reply_markup=markup)
-            bot.register_next_step_handler(message, contest_func)
-        elif message.text == "Головне меню":
+        global message_appeals
+        if message.text == "Головне меню":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
             markup.add(types.KeyboardButton("Конкурси"),
                        types.KeyboardButton("Положення"),
@@ -281,44 +244,73 @@ def telegram_bot():
                            "8. Питання/відповідь\n" \
                            "9. Профбюро студентів та департаменти ППОС НАУ \"ХАІ\""
             bot.send_message(message.chat.id, chat_message, reply_markup=markup)
+        elif message.text == "Конкурси":
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+            localsheets = sheetContest.get_all_records()
+            buttons_group = []
+            for localsheet in localsheets:
+                contest = Contest(
+                    localsheet["Назва конкурсу"],
+                    datetime.strptime(localsheet["Дата проведення початку"], "%Y-%m-%d"),
+                    datetime.strptime(localsheet["Дата кінець"], "%Y-%m-%d"),
+                    localsheet["Супровід текст"])
+                contests.append(contest)
+                button = types.KeyboardButton(localsheet.get("Назва конкурсу"))
+                buttons_group.append(button)
+                if len(buttons_group) == 2:
+                    markup.add(*buttons_group)
+                    buttons_group = []
+
+            if buttons_group:
+                markup.add(*buttons_group)
+
+            markup.add(types.KeyboardButton("Головне меню"), row_width=2)
+            bot.send_message(message.chat.id,
+                             "Конкурси, що тривають, або будуть проходити незабаром:",
+                             reply_markup=markup)
+            bot.register_next_step_handler(message, contest_func)
         elif message.text == "Профбюро студентів та департаменти ППОС НАУ \"ХАІ\"":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-            markup.add(types.KeyboardButton("1 факультет"),
-                       types.KeyboardButton("2 факультет"),
-                       types.KeyboardButton("3 факультет"),
-                       types.KeyboardButton("4 факультет"),
-                       types.KeyboardButton("5 факультет"),
-                       types.KeyboardButton("6 факультет"),
-                       types.KeyboardButton("7 факультет"),
-                       types.KeyboardButton("Де КМІП"),
-                       types.KeyboardButton("Де МК"),
-                       types.KeyboardButton("Де СО"),
-                       types.KeyboardButton("Де СОРТТ"),
-                       types.KeyboardButton("Де СЗНР"),
-                       types.KeyboardButton("Де ЖП"),
-                       types.KeyboardButton("Де ОРДТМ"),
-                       types.KeyboardButton("Головне меню"))
+            localsheets = sheetDepart.get_all_records()
+            buttons_group = []
+            for localsheet in localsheets:
+                button = types.KeyboardButton(localsheet.get("Назва підрозділу"))
+                buttons_group.append(button)
+                if len(buttons_group) == 2:
+                    markup.add(*buttons_group)
+                    buttons_group = []
+            if buttons_group:
+                markup.add(*buttons_group)
+            markup.add(types.KeyboardButton("Головне меню"))
             bot.send_message(message.chat.id, "Оберіть профбюро, або департамент, який вас цікавить:",
                              reply_markup=markup)
             bot.register_next_step_handler(message, faculty_profcom)
         elif message.text == "Питання/відповідь":
             check_num = False
-            bot.send_message(message.chat.id, "1. Коли я можу оформити соціальну стипендію?\n"
-                                              "2. Де я можу знайти приклади шаблонів заяв та документів?\n"
-                                              "3. Скільки всього стипендій я можу отримувати?\n"
-                                              "4. Як часто необхідно оформлювати соціальну стипендію?\n"
-                                              "5. Що таке соціальні стипендії і хто має право на їх оформлення?\n")
+            localsheets = sheetFAQ.get_all_records()
+            i = 1
+            buttons_group = []
+            message_text = f""
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=5)
-            markup.add(types.KeyboardButton("1"),
-                       types.KeyboardButton("2"),
-                       types.KeyboardButton("3"),
-                       types.KeyboardButton("4"),
-                       types.KeyboardButton("5"))
+            for localsheet in localsheets:
+                button = types.KeyboardButton(i)
+                buttons_group.append(button)
+                FAQs.append(
+                    FAQ_data(i, localsheet.get("Питання"), localsheet.get("Відповідь"), localsheet.get("Посилання")))
+                message_text += f'{i}. {localsheet.get("Питання")}\n'
+                if len(buttons_group) == 5:
+                    markup.add(*buttons_group)
+                    buttons_group = []
+                i += 1
+            if buttons_group:
+                markup.add(*buttons_group)
+            bot.send_message(message.chat.id, message_text)
             markup.add(types.KeyboardButton("Головне меню"), row_width=5)
             bot.send_message(message.chat.id, "Оберіть пункт меню, що відповідає порядковому номеру питання:",
                              reply_markup=markup)
             bot.register_next_step_handler(message, FAQ)
         elif message.text == "Пропозиції та скарги":
+            message_appeals = message.text
             check_num = False
             bot.send_message(message.chat.id,
                              "Хайовцю, напиши свою пропозицію чи скаргу та обов'язково в кінці залиште свої контактні дані для отримання зворотного зв’язку:\n"
@@ -331,7 +323,7 @@ def telegram_bot():
             markup.add(btn)
             bot.send_message(message.chat.id, "Щоб завершити подачу заявки натисніть на кнопку \"СТОП\"",
                              reply_markup=markup)
-            bot.register_next_step_handler(message, suggestions)
+            bot.register_next_step_handler(message, question)
         elif message.text == "Зв’язок з деканатом та соціальні мережі":
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             markup.add(types.KeyboardButton("Соціальні мережі ППОС НАУ \"ХАІ\""),
@@ -341,6 +333,7 @@ def telegram_bot():
                              reply_markup=markup)
             bot.register_next_step_handler(message, social_and_dekanat)
         elif message.text == "Повідомити про технічну помилку":
+            message_appeals = message.text
             check_num = False
             bot.send_message(message.chat.id, "Шановні хайовці!👩🏼‍💻\n"
                                               "Якщо ви помітили, що сайт Профкому студентів ХАІ чи "
@@ -355,7 +348,7 @@ def telegram_bot():
             markup.add(btn)
             bot.send_message(message.chat.id, "Щоб завершити подачу заявки натисніть на кнопку \"СТОП\"",
                              reply_markup=markup)
-            bot.register_next_step_handler(message, problem_report)
+            bot.register_next_step_handler(message, question)
         elif message.text == "Положення":
             localsheets = sheetDoc.get_all_records()
             bot.send_message(message.chat.id, "Почекайте, оновлюємо інформацію")
@@ -374,6 +367,7 @@ def telegram_bot():
             bot.send_message(message.chat.id, "Оберіть які саме реквізити Вам потрібні:", reply_markup=markup)
             bot.register_next_step_handler(message, req_)
         elif message.text == "Запитай Профком студентів ХАІ":
+            message_appeals = message.text
             check_num = False
             bot.send_message(message.chat.id, "Напишіть своє питання та обов'язково в кінці "
                                               "залиште свої контактні дані(ПІБ, номер групи, номер телефону, telegram або instagram)")
