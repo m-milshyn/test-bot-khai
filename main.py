@@ -78,11 +78,12 @@ def telegram_bot():
         bot.send_message(message.chat.id, chat_message, reply_markup=markup)
 
     def faculty_profcom(message):
-        if sheetDepart.find(message.text):
-            for localsheet in localsheets:
-                if localsheet["Назва підрозділу"] == message.text:
-                    textMessage = f'{localsheet["Назва підрозділу"]}\n\n{localsheet["Основний текст про підрозділ"]}\n\n{localsheet["Контакти та ПІБ"]}'
-                    bot.send_message(message.chat.id, textMessage)
+        localsheet_dict = {sheet["Назва підрозділу"]: sheet for sheet in localsheets}
+
+        if message.text in localsheet_dict:
+            sheet = localsheet_dict[message.text]
+            textMessage = f'{sheet["Назва підрозділу"]}\n\n{sheet["Основний текст про підрозділ"]}\n\n{sheet["Контакти та ПІБ"]}'
+            bot.send_message(message.chat.id, textMessage)
             bot.register_next_step_handler(message, faculty_profcom)
         else:
             func(message)
