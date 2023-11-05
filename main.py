@@ -115,6 +115,7 @@ def telegram_bot():
                 if localsheet["Website"].__len__() != 0 and localsheet["Website link"].__len__() != 0:
                     textMessage += f'Website: [{localsheet["Website"]}]({localsheet["Website link"]})\n'
                 bot.send_message(message.chat.id, textMessage, parse_mode="Markdown")
+                time.sleep(1)
             bot.register_next_step_handler(message, social_and_dekanat)
         elif message.text == "Зв’язок з деканатами":
             bot.send_message(message.chat.id, "Почекайте, оновлюємо інформацію")
@@ -155,14 +156,12 @@ def telegram_bot():
     def FAQ(message):
         if message.text == "Головне меню":
             func(message)
-        answer_text = f""
-        for data in FAQs:
-            if str(data.number) == message.text:
-                answer_text += f"{data.answer}"
-                if data.link is not None:
-                    answer_text += f'\n\n{data.link}'
-                bot.send_message(message.chat.id, answer_text)
-                bot.register_next_step_handler(message, FAQ)
+        else:
+            answer_text = f"{FAQs[int(message.text) - 1].answer}"
+            if FAQs[int(message.text) - 1].link is not None:
+                answer_text += f'\n\n{FAQs[int(message.text) - 1].link}'
+            bot.send_message(message.chat.id, answer_text)
+            bot.register_next_step_handler(message, FAQ)
 
     def contest_send(message):
         global check_num
